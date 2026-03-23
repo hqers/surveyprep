@@ -33,43 +33,62 @@ from typing import Optional
 
 FILE_SIGNATURES = {
     'rt_file': {
-        'required': {'r101', 'r102', 'r105'},   # provinsi, kab, urban/rural
-        'supporting': {'r201', 'r301', 'r401', 'r403', 'fwt', 'psu', 'wi1', 'renum'},
+        # KOR RT: punya kolom fisik bangunan (r1802+) dan tidak punya b41/b42/food/nonfood
+        'required': {'r101', 'r102', 'r105'},
+        'supporting': {'r201', 'r301', 'r401', 'r403', 'r1802', 'r1806', 'r1807', 'r1808'},
         'min_supporting': 2,
         'description': 'Household record (KOR RT)',
-        'exclude_if': {'r407'},  # r407 (umur ART) tidak ada di RT
+        'exclude_if': {'b41k5', 'b41k6', 'b42k3', 'b42k4', 'food', 'nonfood',
+                       'kalori', 'coicop', 'klp', 'kode'},
     },
     'art_a_file': {
-        'required': {'r401', 'r403', 'r405', 'r407'},  # nomor urut, hubungan, sex, umur
+        # KOR ART: punya r407 (umur) dan tidak punya kolom fisik bangunan
+        'required': {'r401', 'r403', 'r405', 'r407'},
         'supporting': {'r408', 'r409', 'r410', 'r412', 'r415'},
         'min_supporting': 1,
         'description': 'Individual record part A (KOR ART)',
-        'exclude_if': {'r1802', 'r1806', 'r1807'},  # fisik bangunan hanya di RT
+        'exclude_if': {'r1802', 'r1806', 'r1807', 'b41k5', 'coicop'},
     },
     'art_b_file': {
+        # KOR ART part B: punya blok 6 (pendidikan/ketenagakerjaan)
         'required': {'r401', 'r403'},
         'supporting': {'r601', 'r602', 'r603', 'r604', 'r605', 'r606', 'r607'},
         'min_supporting': 3,
         'description': 'Individual record part B (KOR ART blok 6+)',
-        'exclude_if': {'r1802'},
+        'exclude_if': {'r1802', 'b41k5', 'coicop'},
     },
     'kp41_files': {
-        'required': set(),
-        'supporting': {'kode_kab', 'kode_komoditi', 'nilai_setahun', 'nilai', 'komoditi',
-                       'r701', 'r702', 'r703', 'urut_komoditi'},
+        # KP41 food expenditure: punya b41k5/b41k6 dan kalori/protein
+        'required': {'coicop', 'klp', 'kode'},
+        'supporting': {'b41k5', 'b41k6', 'b41k7', 'b41k8', 'kalori', 'protein',
+                       'lemak', 'karbo'},
         'min_supporting': 2,
         'description': 'Food expenditure (KP41)',
         'glob_patterns': ['*blok41*', '*kp41*', '*41_gab*', '*food*'],
-        'multi': True,  # bisa lebih dari satu file (per provinsi)
+        'multi': True,
+        'exclude_if': {'b42k3', 'b42k4', 'food', 'nonfood', 'r401', 'r403',
+                       'r1802', 'r1806'},
     },
     'kp42_files': {
-        'required': set(),
-        'supporting': {'kode_kab', 'kode_komoditi', 'nilai_setahun', 'nilai',
-                       'r801', 'r802', 'urut_komoditi'},
+        # KP42 non-food expenditure: punya b42k3/b42k4 dan sebulan
+        'required': {'coicop', 'klp', 'kode'},
+        'supporting': {'b42k3', 'b42k4', 'b42k5', 'b42k3a', 'b42k3b', 'sebulan'},
         'min_supporting': 2,
         'description': 'Non-food expenditure (KP42)',
         'glob_patterns': ['*blok42*', '*kp42*', '*42_gab*', '*nonfood*'],
         'multi': True,
+        'exclude_if': {'b41k5', 'b41k6', 'kalori', 'food', 'nonfood', 'r401',
+                       'r1802'},
+    },
+    'kp43_files': {
+        # KP43 expenditure summary: punya food, nonfood, expend, kapita
+        'required': {'food', 'nonfood', 'expend', 'kapita'},
+        'supporting': {'kalori_kap', 'prote_kap', 'lemak_kap', 'karbo_kap'},
+        'min_supporting': 1,
+        'description': 'Expenditure summary (KP43)',
+        'glob_patterns': ['*blok43*', '*kp43*'],
+        'multi': True,
+        'exclude_if': {'b41k5', 'b42k3', 'r401', 'r1802'},
     },
 }
 
@@ -224,6 +243,7 @@ def find_susenas_files(
         'art_b_file': None,
         'kp41_files': [],
         'kp42_files': [],
+        'kp43_files': [],
         'sep': sep_detected,
         'status': {},
         'all_csv': all_csv,
@@ -284,7 +304,7 @@ def print_scan_report(result: dict, year: Optional[int] = None) -> None:
     STATUS_ICON = {'found': '✅', 'missing': '❌', 'ambiguous': '⚠️ '}
 
     single_files = ['rt_file', 'art_a_file', 'art_b_file']
-    multi_files  = ['kp41_files', 'kp42_files']
+    multi_files  = ['kp41_files', 'kp42_files', 'kp43_files']
 
     for ftype in single_files:
         sig = FILE_SIGNATURES[ftype]

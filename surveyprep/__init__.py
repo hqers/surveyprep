@@ -1,5 +1,10 @@
 """
 SurveyPrep — Modular preprocessing framework for household expenditure surveys.
-Version: 1.0.0 | Metadata basis: Susenas 2020 Maret (KOR)
+Metadata basis: Susenas 2020 Maret (KOR)
 """
-__version__ = "1.0.0"
+try:
+    from importlib.metadata import version, PackageNotFoundError
+    __version__ = version("surveyprep")
+except PackageNotFoundError:
+    # Fallback kalau dijalankan langsung dari source tanpa install
+    __version__ = "1.9.1"
