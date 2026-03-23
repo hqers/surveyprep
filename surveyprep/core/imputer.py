@@ -153,20 +153,22 @@ def cap_outliers(
         num_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
 
     for c in num_cols:
-        col = pd.to_numeric(df[c], errors='coerce')
+        col = pd.to_numeric(df[c], errors='coerce').astype('float64')
         med  = col.median()
         std  = col.std(ddof=0)
         cap  = med + n_sd * std
 
         # Nilai negatif pada pengeluaran → 0
         if col.min() < 0:
-            df[c] = col.clip(lower=0)
-            col   = pd.to_numeric(df[c], errors='coerce')
+            col = col.clip(lower=0)
 
         n_capped = (col > cap).sum()
         if n_capped > 0:
-            df[c] = col.clip(upper=cap)
+            col = col.clip(upper=cap)
             if verbose:
                 print(f"  [cap] {c}: {n_capped} values capped at {cap:.2f}")
+
+        # Tulis kembali ke DataFrame — paksa float64 supaya tidak konflik dengan Int64
+        df[c] = col.astype('float64')
 
     return df
