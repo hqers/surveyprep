@@ -190,7 +190,7 @@ def generate_notebook(
         "if needs_install:",
         '    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",',
         '                           "--force-reinstall", "--no-cache-dir",',
-        '                           f"git+{GITHUB_URL}"])',
+        '                           GITHUB_URL])',
         "    import importlib",
         "    import surveyprep",
         "    importlib.reload(surveyprep)",
