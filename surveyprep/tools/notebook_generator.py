@@ -275,116 +275,83 @@ def generate_notebook(
     ]))
 
     # ── Cell 4: Build HH Record ───────────────────────────────────────────────
-    cells.append(_md_cell(f"## 4. Build HH Record (RT)\n\n"
-                           f"Membaca `{CONFIG.get('rt_file', f'kor{yr2}rt_diseminasi.csv')}` "
-                           f"dan menerapkan `RUNNER_RT` ({len(RUNNER_RT)} fitur)."))
+    cells.append(_md_cell(f"## 4. Build HH Record (RT)"))
     cells.append(_code_cell([
-        f"rt_file = DATA_DIR / CONFIG['rt_file']",
-        f"print(f'Membaca: {{rt_file}}')",
+        "# build_hh_record menerima PATH ke file RT, bukan DataFrame",
+        "rt_file = scan['rt_file'] if scan['rt_file'] else DATA_DIR / CONFIG['rt_file']",
+        "print(f'Membaca RT: {{rt_file}}')",
         "",
-        f"df_rt = read_bps_csv(",
-        f"    rt_file,",
-        f"    sep      = CONFIG.get('sep', ';'),",
-        f"    encoding = CONFIG.get('encoding', 'latin-1'),",
-        f"    decimal  = CONFIG.get('decimal', ','),",
-        f")",
+        "df_hh = build_hh_record(str(rt_file), verbose=True)",
         "",
-        "# Terapkan filter provinsi jika ada",
-        "if PROV_FILTER:",
-        "    df_rt = df_rt[df_rt['r101'].astype(str).isin(PROV_FILTER)]",
-        "",
-        f"df_hh = build_hh_record(df_rt, CONFIG, RUNNER_RT, VALUE_LABELS)",
-        "",
-        "print(f'RT dimuat : {{len(df_rt):,}} baris')",
-        "print(f'HH record : {{len(df_hh):,}} baris × {{df_hh.shape[1]}} kolom')",
+        "print(f'HH record : {{len(df_hh):,}} baris x {{df_hh.shape[1]}} kolom')",
         "df_hh.head(3)",
     ]))
 
     # ── Cell 5: Build Individual ──────────────────────────────────────────────
-    cells.append(_md_cell("## 5. Build Individual (ART)\n\nMerge data individu ke RT."))
-
-    # Susenas 2023+ pakai individual_2024 handler
-    if year >= 2023:
-        cells.append(_code_cell([
-            "from surveyprep.susenas.individual_2024 import build_individual_2024",
-            "",
-            f"art_files = [",
-            f"    DATA_DIR / CONFIG['art_a_file'],",
-            f"    DATA_DIR / CONFIG['art_b_file'],",
-            f"]",
-            "print(f'Membaca ART dari {len(art_files)} file...')",
-            "",
-            "df_ind = build_individual_2024(",
-            "    art_files, df_hh, CONFIG, EMPLOYMENT, VALUE_LABELS",
-            ")",
-            "print(f'Individual: {len(df_ind):,} ART → {df_ind[\"HHID\"].nunique():,} RT')",
-        ]))
-    else:
-        cells.append(_code_cell([
-            f"art_files = [",
-            f"    DATA_DIR / CONFIG['art_a_file'],",
-            f"    DATA_DIR / CONFIG.get('art_b_file', ''),",
-            f"]",
-            f"art_files = [f for f in art_files if f.name]",
-            "print(f'Membaca ART dari {len(art_files)} file...')",
-            "",
-            "df_art = load_art_merged(",
-            "    art_files,",
-            "    sep      = CONFIG.get('sep', ';'),",
-            "    encoding = CONFIG.get('encoding', 'latin-1'),",
-            ")",
-            "",
-            "df_ind = build_individual(",
-            "    df_art, df_hh, CONFIG, RUNNER_ART, EMPLOYMENT, VALUE_LABELS",
-            ")",
-            "print(f'Individual: {len(df_art):,} ART → {df_ind[\"HHID\"].nunique():,} RT')",
-        ]))
+    cells.append(_md_cell("## 5. Build Individual (ART)"))
+    cells.append(_code_cell([
+        "# load_art_merged menerima dua PATH: art_a dan art_b",
+        "art_a = scan['art_a_file'] if scan['art_a_file'] else DATA_DIR / CONFIG['art_a_file']",
+        "art_b = scan['art_b_file'] if scan['art_b_file'] else DATA_DIR / CONFIG.get('art_b_file', '')",
+        "print(f'ART A: {{art_a.name}}')",
+        "print(f'ART B: {{art_b.name if art_b else "(tidak ada)"}}' )",
+        "",
+        "df_art = load_art_merged(str(art_a), str(art_b) if art_b else None, verbose=True)",
+        "",
+        "# build_individual menerima DataFrame ART + opsional DataFrame RT",
+        "df_soc = build_individual(df_art, soc=df_hh, verbose=True)",
+        "",
+        "print(f'Sosio-demografi: {{len(df_soc):,}} RT x {{df_soc.shape[1]}} kolom')",
+        "df_soc.head(3)",
+    ]))
 
     # ── Cell 6: Food expenditure (opsional) ───────────────────────────────────
     if include_food:
         cells.append(_md_cell("## 6. Food Expenditure (KP41)"))
         cells.append(_code_cell([
-            f"kp41_files = sorted(DATA_DIR.glob(CONFIG['kp41_glob']))",
-            "print(f'File KP41 ditemukan: {len(kp41_files)}')",
+            "from surveyprep.susenas.food_exp import build_food_expenditure",
             "",
-            "df_food = build_food_expenditure(",
-            "    kp41_files, CONFIG, KLP,",
-            "    sep      = CONFIG.get('sep', ';'),",
-            "    encoding = CONFIG.get('encoding', 'latin-1'),",
-            "    decimal  = CONFIG.get('decimal', ','),",
-            ")",
-            "print(f'Food exp: {len(df_food):,} baris')",
+            "kp41_files = scan['kp41_files'] if scan['kp41_files'] else sorted(DATA_DIR.glob(CONFIG['kp41_glob']))",
+            "kp41_paths = [str(f) for f in kp41_files]  # konversi Path ke str",
+            "print(f'File KP41: {{len(kp41_paths)}} file')",
+            "",
+            "df_food = build_food_expenditure(kp41_paths, verbose=True)",
+            "print(f'Food exp: {{len(df_food):,}} RT')",
+            "df_food.head(3)",
         ]))
 
     # ── Cell 7: Non-food expenditure (opsional) ───────────────────────────────
     if include_nonfood:
-        cells.append(_md_cell("## 7. Non-Food Expenditure (KP42)"))
+        cells.append(_md_cell("## 7. Non-Food Expenditure (KP42 + KP43)"))
         cells.append(_code_cell([
-            f"kp42_files = sorted(DATA_DIR.glob(CONFIG['kp42_glob']))",
-            "print(f'File KP42 ditemukan: {len(kp42_files)}')",
+            "from surveyprep.susenas.nonfood_exp import build_nonfood_expenditure",
             "",
-            "df_nonfood = build_nonfood_expenditure(",
-            "    kp42_files, CONFIG,",
-            "    sep      = CONFIG.get('sep', ';'),",
-            "    encoding = CONFIG.get('encoding', 'latin-1'),",
-            "    decimal  = CONFIG.get('decimal', ','),",
-            ")",
-            "print(f'Non-food exp: {len(df_nonfood):,} baris')",
+            "kp42_files = scan['kp42_files'] if scan['kp42_files'] else sorted(DATA_DIR.glob(CONFIG['kp42_glob']))",
+            "kp43_files = scan.get('kp43_files', [])",
+            "kp42_paths = [str(f) for f in kp42_files]",
+            "kp43_paths = [str(f) for f in kp43_files] if kp43_files else None",
+            "print(f'File KP42: {{len(kp42_paths)}} | KP43: {{len(kp43_paths) if kp43_paths else 0}}')",
+            "",
+            "df_nonfood = build_nonfood_expenditure(kp42_paths, kp43_files=kp43_paths, verbose=True)",
+            "print(f'Non-food: {{len(df_nonfood):,}} RT')",
+            "df_nonfood.head(3)",
         ]))
 
     # ── Cell 8: Integrate ─────────────────────────────────────────────────────
     step = 6 + int(include_food) + int(include_nonfood) + 1
     cells.append(_md_cell(f"## {step}. Integrate Semua Komponen"))
+    food_arg   = "df_food"   if include_food    else "None"
+    nonfood_arg = "df_nonfood" if include_nonfood else "None"
     cells.append(_code_cell([
-        "df_integrated = integrate_all(",
-        "    df_hh  = df_hh,",
-        "    df_ind = df_ind,",
-        *(["    df_food    = df_food,"] if include_food else ["    df_food    = None,"]),
-        *(["    df_nonfood = df_nonfood,"] if include_nonfood else ["    df_nonfood = None,"]),
-        "    config = CONFIG,",
-        ")",
-        "print(f'Integrated: {len(df_integrated):,} RT × {df_integrated.shape[1]} kolom')",
-        "df_integrated.describe(include='all').T.head(20)",
+        "# integrate_all menerima: soc (RT level), food, nonfood",
+        f"df_integrated = integrate_all(",
+        f"    soc     = df_soc,",
+        f"    food    = {food_arg},",
+        f"    nonfood = {nonfood_arg},",
+        f"    verbose = True,",
+        f")",
+        "print(f'Integrated: {{len(df_integrated):,}} RT x {{df_integrated.shape[1]}} kolom')",
+        "df_integrated.head(3)",
     ]))
 
     # ── Cell 9: Impute & cap ──────────────────────────────────────────────────

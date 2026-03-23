@@ -7,4 +7,4 @@ try:
     __version__ = version("surveyprep")
 except PackageNotFoundError:
     # Fallback kalau dijalankan langsung dari source tanpa install
-    __version__ = "1.9.2"
+    __version__ = "1.9.3"
