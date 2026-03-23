@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "surveyprep"
+version = "1.9.0"
+description = "Modular preprocessing pipeline for mixed-type household survey data (Susenas, EHCVM, LSMS)"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Hasta Pratama", email = "33220015@std.stei.itb.ac.id" }
+]
+keywords = [
+    "survey", "preprocessing", "household", "susenas", "ehcvm",
+    "clustering", "mixed-type", "indonesia", "bps"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pandas>=1.5.0",
+    "numpy>=1.23.0",
+]
+
+[project.optional-dependencies]
+stata = ["pyreadstat>=1.2.0"]       # untuk read_stata (EHCVM)
+dev   = ["pytest>=7.0", "black", "ruff"]
+full  = ["surveyprep[stata]"]
+
+[project.urls]
+Homepage   = "https://github.com/hqers/surveyprep"
+Repository = "https://github.com/hqers/surveyprep"
+Issues     = "https://github.com/hqers/surveyprep/issues"
+
+[project.scripts]
+surveyprep-generate = "surveyprep.tools.adapter_generator:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["surveyprep*"]
+
+[tool.setuptools.package-data]
+"surveyprep" = ["py.typed"]
