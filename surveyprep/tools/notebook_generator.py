@@ -160,14 +160,44 @@ def generate_notebook(
     ]))
 
     # ── Cell 1: Install surveyprep ────────────────────────────────────────────
+    import surveyprep as _sp
+    _min_ver = _sp.__version__   # versi saat notebook di-generate
+
     cells.append(_md_cell("## 1. Install SurveyPrep"))
     cells.append(_code_cell([
-        "# Install surveyprep dari GitHub",
-        f"# Ganti URL jika repo sudah dipindah atau menggunakan fork",
-        f'!pip install -q "git+{github_url}"',
+        "import subprocess, sys",
+        f'GITHUB_URL = "git+{github_url}"',
+        f'MIN_VERSION = "{_min_ver}"   # versi minimum yang dibutuhkan notebook ini',
         "",
-        "# Verifikasi instalasi",
-        "import surveyprep",
+        "# Cek apakah sudah terinstall dan versinya cukup",
+        "def _ver_tuple(v):",
+        "    try: return tuple(int(x) for x in v.split('.'))",
+        "    except: return (0,)",
+        "",
+        "needs_install = False",
+        "try:",
+        "    import surveyprep as _sp",
+        "    installed = _sp.__version__",
+        "    if _ver_tuple(installed) < _ver_tuple(MIN_VERSION):",
+        "        print(f'⚠ Versi terinstall ({installed}) < minimum ({MIN_VERSION}) — reinstall...')",
+        "        needs_install = True",
+        "    else:",
+        "        print(f'✓ surveyprep {installed} sudah memenuhi syarat (min: {MIN_VERSION})')",
+        "except ImportError:",
+        "    print('surveyprep belum terinstall — install sekarang...')",
+        "    needs_install = True",
+        "",
+        "if needs_install:",
+        '    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",',
+        '                           "--force-reinstall", "--no-cache-dir",',
+        '                           f"git+{GITHUB_URL}"])',
+        "    import importlib",
+        "    import surveyprep",
+        "    importlib.reload(surveyprep)",
+        "    print(f'✅ surveyprep {surveyprep.__version__} berhasil diinstall')",
+        "else:",
+        "    import surveyprep",
+        "",
         "print(f'surveyprep versi: {surveyprep.__version__}')",
     ], tags=['setup']))
 
