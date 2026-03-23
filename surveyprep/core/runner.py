@@ -262,8 +262,11 @@ def execute_runner(
 
         fn = _RUNNERS[kind]
         try:
-            soc = fn(soc, rt if kind == 'from_rt' else art,
-                     rt=rt, art=art, **item)
+            second = rt if kind == 'from_rt' else art
+            # Hapus rt/art dari item jika ada (cegah duplicate keyword)
+            clean_item = {k: v for k, v in item.items()
+                          if k not in ('kind', 'rt', 'art')}
+            soc = fn(soc, second, **clean_item)
         except Exception as e:
             print(f"  [RUNNER] ERROR pada '{out}': {e}")
 

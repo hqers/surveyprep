@@ -397,15 +397,22 @@ def generate_notebook(
     step += 1
     cells.append(_md_cell(f"## {step}. Ringkasan Hasil"))
     cells.append(_code_cell([
-        "# Muat kembali file output untuk verifikasi",
-        f"clust_file = OUTPUT_DIR / f'{{PREFIX}}_CLUSTERING_ready.csv'",
+        "# Exporter menyimpan dengan nama tetap (tanpa prefix)",
+        "clust_file  = OUTPUT_DIR / 'HH_CLUSTERING_ready.csv'",
+        "profil_file = OUTPUT_DIR / 'HH_PROFILING_with_weights.csv'",
+        "",
         "if clust_file.exists():",
-        "    df_check = pd.read_csv(clust_file, sep=';', nrows=5)",
-        "    print(f'CLUSTERING_ready: {len(pd.read_csv(clust_file, sep=\";\")):.0f} baris')",
-        "    print(f'Kolom: {list(df_check.columns)}')",
-        "    display(df_check)",
+        "    df_check = pd.read_csv(clust_file, sep=';')",
+        "    print(f'CLUSTERING_ready  : {{len(df_check):,}} baris x {{df_check.shape[1]}} kolom')",
+        "    print(f'Kolom fitur       : {{list(df_check.columns[:10])}} ...')",
+        "    display(df_check.head(3))",
         "else:",
-        "    print('File output belum ditemukan — cek path atau jalankan ulang cell Export')",
+        "    print(f'File tidak ditemukan di: {{OUTPUT_DIR}}')",
+        "    print('Pastikan cell Export sudah dijalankan dan OUTPUT_DIR benar')",
+        "",
+        "if profil_file.exists():",
+        "    df_prof = pd.read_csv(profil_file, sep=';', nrows=2)",
+        "    print(f'PROFILING_with_weights: {{df_prof.shape[1]}} kolom (termasuk bobot survei)')",
     ]))
 
     # ── Assemble notebook ─────────────────────────────────────────────────────
