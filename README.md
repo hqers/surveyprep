@@ -122,7 +122,7 @@ adapters/
 
 ## Generate Notebook
 
-Buka [mixclust.hqers.my.id](https://mixclust.hqers.my.id) → Notebook Generator
+Buka [hqers.my.id/mixclust](https://hqers.my.id/mixclust) → Notebook Generator
 → pilih tahun → download `.ipynb` siap pakai.
 
 ## Citation
