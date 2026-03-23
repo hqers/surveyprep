@@ -224,6 +224,26 @@ def generate_notebook(
             "PROV_FILTER = []  # kosong = semua provinsi",
         ]))
 
+    # ── Cell 3b: File scanner ────────────────────────────────────────────────
+    cells.append(_md_cell("## 3b. Scan & Verifikasi File Data"))
+    cells.append(_code_cell([
+        "from surveyprep.core.finder import find_susenas_files, print_scan_report, assert_files_found",
+        "",
+        "# Scan otomatis — tidak perlu tahu nama file persisnya",
+        f"scan = find_susenas_files(DATA_DIR, year={year}, verbose=True)",
+        "print_scan_report(scan)",
+        "",
+        "# Override CONFIG dengan file yang terdeteksi",
+        "if scan['rt_file']:    CONFIG['rt_file']    = scan['rt_file'].name",
+        "if scan['art_a_file']: CONFIG['art_a_file'] = scan['art_a_file'].name",
+        "if scan['art_b_file']: CONFIG['art_b_file'] = scan['art_b_file'].name",
+        "if scan['sep']:        CONFIG['sep']        = scan['sep']",
+        "",
+        "# Stop di sini kalau file penting tidak ditemukan",
+        "assert_files_found(scan)",
+        "print('\n✅ Semua file ditemukan — lanjutkan ke cell berikutnya')",
+    ]))
+
     # ── Cell 4: Build HH Record ───────────────────────────────────────────────
     cells.append(_md_cell(f"## 4. Build HH Record (RT)\n\n"
                            f"Membaca `{CONFIG.get('rt_file', f'kor{yr2}rt_diseminasi.csv')}` "
