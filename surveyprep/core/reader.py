@@ -37,6 +37,10 @@ def read_bps_csv(
     path: Union[str, Path],
     str_cols: Tuple[str, ...] = _DEFAULT_STR_COLS,
     verbose: bool = False,
+    sep: Optional[str] = None,
+    encoding: Optional[str] = None,
+    decimal: Optional[str] = None,
+    thousands: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Membaca satu file CSV format BPS (Susenas).
@@ -54,6 +58,14 @@ def read_bps_csv(
         Kolom yang dipaksa menjadi string. Default: renum, kode, kelompok, klp, coicop.
     verbose : bool
         Jika True, cetak info shape setelah membaca.
+    sep : str, optional
+        Separator kolom. Default: ';' (format BPS standar).
+    encoding : str, optional
+        Encoding file. Default: 'latin-1'.
+    decimal : str, optional
+        Karakter desimal. Default: ',' (format BPS standar).
+    thousands : str, optional
+        Karakter ribuan. Default: '.'.
 
     Returns
     -------
@@ -61,6 +73,11 @@ def read_bps_csv(
     """
     path = Path(path)
     kw = dict(_BPS_READ_KW)
+    # Override default BPS jika parameter eksplisit diberikan
+    if sep is not None:      kw['sep']       = sep
+    if encoding is not None: kw['encoding']  = encoding
+    if decimal is not None:  kw['decimal']   = decimal
+    if thousands is not None: kw['thousands'] = thousands
 
     try:
         df = pd.read_csv(path, **kw)

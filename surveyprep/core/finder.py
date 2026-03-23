@@ -50,12 +50,20 @@ FILE_SIGNATURES = {
         'exclude_if': {'r1802', 'r1806', 'r1807', 'b41k5', 'coicop'},
     },
     'art_b_file': {
-        # KOR ART part B: punya blok 6 (pendidikan/ketenagakerjaan)
-        'required': {'r401', 'r403'},
-        'supporting': {'r601', 'r602', 'r603', 'r604', 'r605', 'r606', 'r607'},
+        # KOR ART part B: blok 13-16 (kesehatan, imunisasi, KB, keterangan lain)
+        # Kolom khas: r1301, r1401, r1501, r1601
+        'required': {'r401'},
+        'supporting': {
+            'r1301', 'r1302', 'r1303_a',              # blok 13 kesehatan
+            'r1401', 'r1402', 'r1403',                # blok 14 imunisasi
+            'r1501a', 'r1501b', 'r1502a',             # blok 15 KB
+            'r1601', 'r1602', 'r1603', 'r1604',       # blok 16 keterangan
+            'nuinfobayi', 'nuinfowpk',                # marker khusus ind_2
+        },
         'min_supporting': 3,
-        'description': 'Individual record part B (KOR ART blok 6+)',
-        'exclude_if': {'r1802', 'b41k5', 'coicop'},
+        'description': 'Individual record part B (KOR ART blok 13-16)',
+        'exclude_if': {'r1802', 'b41k5', 'coicop', 'r405', 'r407',
+                       'r601', 'r701'},
     },
     'kp41_files': {
         # KP41 food expenditure: punya b41k5/b41k6 dan kalori/protein
