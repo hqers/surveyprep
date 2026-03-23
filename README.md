@@ -6,118 +6,130 @@ Designed for Indonesia's Susenas (2017–2025), EHCVM (8 UEMOA countries), and e
 
 ## Features
 
-- **Adapter system** — one file per survey year/country handles all schema differences (column names, value encodings, KLP shifts)
-- **Verified adapters** — Susenas 2017–2025 (all ✅), EHCVM Benin 2021 (✅), 7 other UEMOA countries (placeholders)
-- **Adapter Generator** — upload BPS metadata Excel → auto-generate `susenas_202X.py`
+- **Adapter system** — one file per survey year/country handles all schema differences
+- **Verified adapters** — Susenas 2017–2025 (all ✅), EHCVM Benin 2021 (✅)
+- **Auto file detection** — `finder.py` identifies RT/ART/KP files by column content, not filename
+- **Flexible ART loading** — handles single combined file or two separate files (A+B)
+- **DBF support** — convert BPS `.dbf` files before use (see below)
 - **Dual output** — `HH_CLUSTERING_ready.csv` (no weights) + `HH_PROFILING_with_weights.csv`
-- **Mixed-type support** — categorical + numerical, imputation, outlier capping
-- **EHCVM support** — reads Stata `.dta` files, composite `grappe+menage` key
 
 ## Installation
 
 ```bash
-# From GitHub (recommended)
 pip install git+https://github.com/hqers/surveyprep.git
-
-# For EHCVM (.dta support)
-pip install "git+https://github.com/hqers/surveyprep.git#egg=surveyprep[stata]"
-
-# From local clone
-git clone https://github.com/hqers/surveyprep.git
-pip install -e surveyprep/
 ```
 
 ## Quick Start
 
 ```python
-from surveyprep.pipeline import run_susenas_pipeline
-from surveyprep.adapters import susenas_2020
+from surveyprep.core.finder     import find_susenas_files, print_scan_report, resolve_art_files
+from surveyprep.susenas.hh_record  import build_hh_record
+from surveyprep.susenas.individual import load_art_merged, build_individual
+from surveyprep.susenas.food_exp   import build_food_expenditure
+from surveyprep.susenas.integrator import integrate_all
 
-result = run_susenas_pipeline(
-    data_dir   = "/path/to/susenas_raw/",
-    adapter    = susenas_2020,
-    output_dir = "/path/to/output/",
-    prefix     = "susenas2020",
-)
+# 1. Auto-detect semua file
+scan = find_susenas_files('data/', year=2020)
+print_scan_report(scan)
+
+# 2. Build HH record
+df_hh = build_hh_record(str(scan['rt_file']))
+
+# 3. Build individual (handle ART gabungan otomatis)
+art_a, art_b = resolve_art_files(scan)
+df_art = load_art_merged(art_a, art_b)
+df_soc = build_individual(df_art, soc=df_hh)
+
+# 4. Food expenditure
+kp41_paths = [str(f) for f in scan['kp41_files']]
+df_food = build_food_expenditure(kp41_paths)
+
+# 5. Integrate + export
+df_final = integrate_all(soc=df_soc, food=df_food, nonfood=None)
 ```
 
-## Generate a Notebook
+## Variabel Output (asumsi data lengkap)
 
-Use the **Preprocessing Wizard** in the dashboard to generate a ready-to-run `.ipynb`:
+Output `HH_CLUSTERING_ready.csv` berisi ~55 fitur:
 
-```bash
-# Run dashboard locally
-cd surveyprep_app/
-python run_local.py
-# Open http://localhost:5000 → Preprocessing Wizard
+| Domain | Variabel | Sumber |
+|--------|----------|--------|
+| **Kondisi hunian** | UrbanRural, HomeOwnership, RoofMaterial, WallMaterial, FloorMaterial, Sanitation, ToiletType, WaterSource, AccessEnergy, CookingFuel | KOR RT (r1802–r1817) |
+| **Sosio-demografi** | StatusPekerjaanKRT, HasSavingsAccount, AccessCommunication | KOR ART (r701, r706, r802) |
+| **Pengeluaran pangan** | PADI-PADIAN, UMBI, IKAN, DAGING, TELUR_SUSU, SAYUR, KACANG, BUAH, MINYAK, MINUMAN, BUMBU, MAK_LAINNYA, MAK_JADI, ROKOK (per bulan) | KP41 |
+| **Gizi** | TotalFoodExp_month, Kalori_month, Protein_month | KP41 |
+| **Pengeluaran non-pangan** | TotalNonFoodExp_month, TotalExpenditure_month, PerCapitaExpenditure | KP42/KP43 |
+
+> **Catatan**: Jumlah fitur aktual bergantung pada kelengkapan data yang diterima.
+> Kolom yang tidak tersedia di dataset akan diisi NA dan tidak dimasukkan ke clustering-ready output.
+
+## Format Data BPS
+
+### CSV (diseminasi)
+
+File CSV Susenas diseminasi **belum mengganti kode numerik dengan label**.
+Kode masih berupa integer (contoh: `r105 = 1` untuk Perkotaan, `2` untuk Perdesaan).
+Penggantian kode dilakukan otomatis oleh `VALUE_LABELS` di masing-masing adapter.
+
+### DBF
+
+BPS kadang mendistribusikan data dalam format `.dbf` (dBase). SurveyPrep mendukung
+pembacaan DBF secara langsung. Jika ada masalah, konversi manual:
+
+```python
+# Opsi 1: Konversi DBF ke CSV dulu (direkomendasikan)
+import dbfread
+import pandas as pd
+
+table = dbfread.DBF('kor20rt_diseminasi.dbf', encoding='latin-1')
+df = pd.DataFrame(iter(table))
+df.to_csv('kor20rt_diseminasi.csv', sep=';', index=False, encoding='latin-1')
+
+# Opsi 2: Install dbfread dan baca langsung
+pip install dbfread
 ```
 
-Or generate directly from CLI:
+### Skenario data tidak lengkap (mahasiswa/permintaan khusus)
 
-```bash
-python -m surveyprep.tools.notebook_generator \
-    --year 2020 \
-    --data-path /path/to/raw \
-    --output-path /path/to/output \
-    --target jupyterhub \
-    --jhub-url https://jupyterhub.university.ac.id \
-    --out pipeline_2020.ipynb
-```
+BPS sering memberikan subset kolom kepada mahasiswa. Beberapa skenario umum:
+
+| Skenario | Penanganan |
+|----------|------------|
+| ART A dan B digabung jadi satu file | `finder.py` otomatis deteksi sebagai `art_combined` |
+| Kolom tertentu tidak ada | Fitur terkait diisi NA, pipeline tetap jalan |
+| Hanya KOR RT (tanpa KP) | Jalankan tanpa `food_exp` dan `nonfood_exp` |
+| Hanya beberapa provinsi | Set `PROV_FILTER` di notebook |
 
 ## Adapter System
 
-Each adapter is a thin Python module that overrides only what changed from the base (Susenas 2020):
-
 ```
 adapters/
-├── base.py              ← full definition, default = 2020
-├── susenas_2017.py      ← override: blok R16xx, r801/r802 cols, 21-code KBLI
-├── susenas_2022.py      ← override: hh_id=urut, KLP 183→192, r614 ijazah
-├── susenas_2025.py      ← override: blok R16xx, KLP 183→220, r619 KIP
-└── ehcvm_ben_2021.py    ← full EHCVM adapter (Stata, grappe+menage key)
+├── base.py              ← definisi lengkap (default = 2020)
+├── susenas_2017.py      ← override: kolom ketenagakerjaan r80x
+├── susenas_2022.py      ← override: hh_id=urut, KLP 183→192
+├── susenas_2025.py      ← override: KLP 183→220, r619 KIP
+└── ehcvm_ben_2021.py    ← full EHCVM adapter (Stata, grappe+menage)
 ```
 
-### Schema drift across waves (verified from BPS metadata)
+### Schema drift Susenas 2017–2025
 
-| Variable          | 2017   | 2018   | 2019   | 2020   | 2021   | 2022   | 2023   | 2024   | 2025   |
-|-------------------|--------|--------|--------|--------|--------|--------|--------|--------|--------|
-| `hh_id_col`       | renum  | urut   | renum  | renum  | renum  | urut   | renum  | renum  | renum  |
-| `education_col`   | r615   | r615   | r615   | r615   | r615   | r614   | r614   | r613   | r615   |
-| `activity_col`    | r802   | r802   | r702   | r703   | r703   | r703   | r704   | r704   | r704   |
-| KLP rokok start   | 183    | 183    | 183    | 183    | 183    | 192    | 192    | 192    | 220    |
-| N commodities KP  | 188    | 188    | 188    | 188    | 188    | 197    | 197    | 197    | 225    |
+| Variable | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 |
+|----------|------|------|------|------|------|------|------|------|------|
+| `hh_id_col` | renum | urut | renum | renum | renum | urut | renum | renum | renum |
+| `education_col` | r615 | r615 | r615 | r615 | r615 | r614 | r614 | r613 | r615 |
+| `activity_col` | r802 | r802 | r702 | r703 | r703 | r703 | r704 | r704 | r704 |
+| KLP rokok start | 183 | 183 | 183 | 183 | 183 | 192 | 192 | 192 | 220 |
 
-## Adapter Generator
+## Generate Notebook
 
-Generate a new adapter from BPS metadata Excel automatically:
-
-```bash
-python -m surveyprep.tools.adapter_generator \
-    --kor Metadata_Susenas_202603_Kor.xlsx \
-    --kp  Metadata_Susenas_202603_KP.xlsx  \
-    --year 2026 \
-    --out surveyprep/adapters/susenas_2026.py
-```
-
-## Project Structure
-
-```
-surveyprep/
-├── adapters/         ← per-year/country configuration
-├── core/             ← reader, runner, imputer, exporter
-├── susenas/          ← Susenas-specific builders
-├── tools/            ← adapter_generator, notebook_generator
-└── pipeline.py       ← top-level orchestration
-```
+Buka [mixclust.hqers.my.id](https://mixclust.hqers.my.id) → Notebook Generator
+→ pilih tahun → download `.ipynb` siap pakai.
 
 ## Citation
 
-If you use SurveyPrep in research, please cite:
-
 ```
 Pratama, H. (2026). SurveyPrep: A Configurable Preprocessing Pipeline
-for Mixed-Type Household Survey Data. [Software]. 
-https://github.com/hqers/surveyprep
+for Mixed-Type Household Survey Data. https://github.com/hqers/surveyprep
 ```
 
 ## License

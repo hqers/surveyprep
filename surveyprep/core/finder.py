@@ -65,6 +65,18 @@ FILE_SIGNATURES = {
         'exclude_if': {'r1802', 'b41k5', 'coicop', 'r405', 'r407',
                        'r601', 'r701'},
     },
+    'art_combined': {
+        # ART gabungan: punya kolom blok A (r4xx-r8xx) DAN blok B (r13xx+)
+        # Terjadi kalau BPS/mahasiswa memberikan satu file merged
+        'required': {'r401', 'r403', 'r405', 'r407'},
+        'supporting': {
+            'r1301', 'r1401', 'r1501a', 'r1601',     # blok B
+            'r615', 'r702', 'r703', 'r802',           # blok A lanjutan
+        },
+        'min_supporting': 3,
+        'description': 'Individual record gabungan (blok A+B dalam satu file)',
+        'exclude_if': {'r1802', 'b41k5', 'coicop'},
+    },
     'kp41_files': {
         # KP41 food expenditure: punya b41k5/b41k6 dan kalori/protein
         'required': {'coicop', 'klp', 'kode'},
@@ -102,6 +114,9 @@ FILE_SIGNATURES = {
 
 # Separator yang dicoba secara berurutan
 SEPS = [';', ',', '\t', '|']
+
+# Ekstensi file yang didukung
+SUPPORTED_EXT = ('.csv', '.sav', '.dta', '.dbf')
 
 
 def _read_header(path: Path, n_rows: int = 3) -> tuple[list[str], str]:
@@ -213,7 +228,7 @@ def find_susenas_files(
     # Kumpulkan semua CSV (case-insensitive)
     all_csv = sorted([
         p for p in data_dir.rglob('*')
-        if p.suffix.lower() in ('.csv', '.sav', '.dta')
+        if p.suffix.lower() in SUPPORTED_EXT
         and not p.name.startswith('.')
         and not p.name.startswith('~')
     ])
@@ -249,6 +264,7 @@ def find_susenas_files(
         'rt_file': None,
         'art_a_file': None,
         'art_b_file': None,
+        'art_combined': None,   # ART gabungan (satu file A+B)
         'kp41_files': [],
         'kp42_files': [],
         'kp43_files': [],
@@ -349,6 +365,24 @@ def print_scan_report(result: dict, year: Optional[int] = None) -> None:
             print(f"  {w}")
 
     print("="*60 + "\n")
+
+
+def resolve_art_files(result: dict) -> tuple:
+    """
+    Resolve path art_a dan art_b dari hasil scan.
+    Handle kasus ART gabungan (satu file) atau dua file terpisah.
+
+    Returns
+    -------
+    (art_a_path, art_b_path) — art_b_path bisa None kalau gabungan
+    """
+    if result.get('art_combined'):
+        # Satu file gabungan
+        return str(result['art_combined']), None
+    art_a = result.get('art_a_file')
+    art_b = result.get('art_b_file')
+    return (str(art_a) if art_a else None,
+            str(art_b) if art_b else None)
 
 
 def assert_files_found(result: dict, require_kp41: bool = True) -> None:

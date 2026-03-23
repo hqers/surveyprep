@@ -173,15 +173,20 @@ def _recode_education(raw_val) -> str:
 
 def load_art_merged(
     art_a_path: str,
-    art_b_path: str,
+    art_b_path: Optional[str] = None,
     verbose: bool = True,
 ) -> pd.DataFrame:
     """
-    Baca dan merge dua file individu (kuesioner A + B).
+    Baca dan merge file individu (kuesioner A + B, atau satu file gabungan).
 
     Susenas membagi kuesioner individu menjadi dua file:
       - ind_1: blok r4xx–r8xx (identitas, pendidikan, ketenagakerjaan, HP)
       - ind_2: blok r9xx–r22xx (kesehatan, disabilitas, program sosial, dll.)
+
+    Tapi beberapa distribusi (mahasiswa, permintaan khusus) bisa jadi:
+      - Satu file gabungan (art_b_path=None)
+      - Dua file tapi kolom tidak lengkap (subset kolom)
+      - Format DBF (dikonversi ke CSV dulu, lihat README)
 
     Merge dilakukan dengan outer join pada kunci bersama.
     Kolom duplikat (_bdup) digabungkan dengan combine_first.
@@ -189,9 +194,9 @@ def load_art_merged(
     Parameters
     ----------
     art_a_path : str
-        Path ke file individu A.
-    art_b_path : str
-        Path ke file individu B.
+        Path ke file individu A (atau file gabungan jika art_b_path=None).
+    art_b_path : str | None
+        Path ke file individu B. Jika None, hanya art_a yang digunakan.
     verbose : bool
 
     Returns
@@ -199,6 +204,21 @@ def load_art_merged(
     pd.DataFrame — satu baris per individu
     """
     a = read_bps_csv(art_a_path, verbose=verbose)
+
+    # Kalau hanya satu file (gabungan atau subset)
+    if art_b_path is None:
+        if verbose:
+            print(f"  [individual] Satu file ART: {a.shape[0]:,} baris x {a.shape[1]} kolom")
+            missing_blok = []
+            if not any(c.startswith('r4') for c in a.columns):
+                missing_blok.append('blok 4 (identitas)')
+            if not any(c.startswith('r13') or c.startswith('r14') for c in a.columns):
+                missing_blok.append('blok 13-14 (kesehatan/imunisasi)')
+            if missing_blok:
+                print(f"  [individual] WARN: kolom berikut tidak ditemukan: {missing_blok}")
+                print(f"  [individual] Pipeline tetap jalan tapi beberapa fitur mungkin NA")
+        return a
+
     b = read_bps_csv(art_b_path, verbose=verbose)
 
     # Normalisasi key
