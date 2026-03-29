@@ -135,7 +135,8 @@ Open [hqers.my.id/mixclust](https://hqers.my.id/mixclust) → Notebook Generator
 ## Associated Publication
 If you use this software, please cite:
 ```
-Pratama, H. (2026). SurveyPrep: A Configurable Framework for Harmonizing Multi-Schema Household Survey Data. (JOSS submission)
+Pratama, H., Lubis, F. F., & Sembiring, J. (2026). 
+SurveyPrep: A Configurable Framework for Harmonizing Multi-Schema Household Survey Data. (JOSS submission)
 ```
 ## Repository
 https://github.com/hqers/surveyprep
