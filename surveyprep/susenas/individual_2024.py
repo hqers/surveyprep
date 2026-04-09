@@ -28,6 +28,45 @@ from ..adapters.susenas_2024 import (
     TEMP_NOT_WORK_2024,
 )
 
+
+# Mapping r706 (lapangan usaha 2024) → sektor 1-digit untuk konsistensi
+# r706 Susenas 2024: kode 2-digit KBLI, 26 kategori
+# Dikelompokkan ke 9 sektor sama dengan tahun lain
+_OCC_SECTOR_2024: dict = {
+    # Pertanian (01-03)
+    '1': 'Pertanian', '2': 'Pertanian', '3': 'Pertanian',
+    # Pertambangan (05-09)
+    '4': 'Pertambangan', '5': 'Pertambangan',
+    # Industri (10-33)
+    '6': 'Industri', '7': 'Industri', '8': 'Industri', '9': 'Industri', '10': 'Industri',
+    # Listrik, Gas, Air (35-39)
+    '11': 'Listrik_Gas_Air', '12': 'Listrik_Gas_Air',
+    # Konstruksi (41-43)
+    '13': 'Konstruksi',
+    # Perdagangan (45-47)
+    '14': 'Perdagangan', '15': 'Perdagangan',
+    # Transportasi (49-53)
+    '16': 'Transportasi', '17': 'Transportasi',
+    # Akomodasi & Makan minum (55-56)
+    '18': 'Perdagangan',
+    # Informasi & Komunikasi (58-63)
+    '19': 'Transportasi',
+    # Keuangan (64-66)
+    '20': 'Keuangan',
+    # Real estate (68)
+    '21': 'Keuangan',
+    # Jasa profesional (69-75)
+    '22': 'Jasa',
+    # Administrasi publik (84)
+    '23': 'Jasa',
+    # Pendidikan (85)
+    '24': 'Jasa',
+    # Kesehatan (86-88)
+    '25': 'Jasa',
+    # Jasa lainnya (90-99)
+    '26': 'Jasa',
+}
+
 # Recode pendidikan 2024 (menggunakan r613: jenjang pendidikan)
 # r613: 1=Tidak/belum sekolah, 2=SD, 3=SMP, 4=SMA, 5=PT (Perguruan Tinggi)
 # Catatan: lebih kasar dari 2020 (22 kode → 5 kode)
@@ -113,8 +152,9 @@ def build_individual_2024(
                        .drop_duplicates('renum'))
         head_occ['OccupationHeadSector'] = (
             head_occ['r706']
-            .apply(lambda v: str(int(float(str(v).replace(',','.')))) 
-                   if pd.notna(v) else pd.NA)
+            .apply(lambda v: _OCC_SECTOR_2024.get(
+                str(int(float(str(v).replace(',','.')))), pd.NA)
+                if pd.notna(v) and str(v).strip() not in ('', 'nan') else pd.NA)
             .astype('string')
         )
         soc = (soc.drop(columns=['OccupationHeadSector'], errors='ignore')

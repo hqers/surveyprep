@@ -113,6 +113,21 @@ _EDU_SIMPLE: dict = {
     'S3':                     'S2_S3',
 }
 
+
+# Mapping lapangan usaha (r705) — KBLI 1 digit, Susenas 2017–2023
+# Susenas 2024: r706 (kode berbeda, 26 sektor), mapping di individual_2024.py
+_OCC_SECTOR: dict = {
+    '1': 'Pertanian',          # Pertanian, kehutanan, perikanan
+    '2': 'Pertambangan',       # Pertambangan dan penggalian
+    '3': 'Industri',           # Industri pengolahan
+    '4': 'Listrik_Gas_Air',    # Listrik, gas, air bersih
+    '5': 'Konstruksi',         # Konstruksi/bangunan
+    '6': 'Perdagangan',        # Perdagangan, hotel, restoran
+    '7': 'Transportasi',       # Transportasi dan komunikasi
+    '8': 'Keuangan',           # Keuangan, perbankan, asuransi
+    '9': 'Jasa',               # Jasa kemasyarakatan, sosial, pribadi
+}
+
 # RUNNER untuk variabel ART-level
 RUNNER_ART = [
     # Pendidikan KRT — dari baris KRT di ART
@@ -329,8 +344,11 @@ def build_individual(
                        .assign(renum=lambda d: d['renum'].astype('string').str.strip())
                        .drop_duplicates('renum'))
         head_occ['OccupationHeadSector'] = (
-            head_occ['r705'].apply(lambda v: str(int(v)) if pd.notna(v) else pd.NA)
-                            .astype('string')
+            head_occ['r705']
+            .apply(lambda v: _OCC_SECTOR.get(
+                str(int(float(str(v).replace(',','.')))), pd.NA)
+                if pd.notna(v) and str(v).strip() not in ('', 'nan') else pd.NA)
+            .astype('string')
         )
         soc = (soc.drop(columns=['OccupationHeadSector'], errors='ignore')
                   .merge(head_occ[['renum', 'OccupationHeadSector']], on='renum', how='left'))
